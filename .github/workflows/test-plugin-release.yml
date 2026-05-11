@@ -1,0 +1,87 @@
+name: Test Plugin Release
+
+on:
+  push:
+    branches:
+      - codex/npcVoiceIssue
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Numeric plugin version to publish for testing.
+        required: true
+        default: 0.1.4.1
+
+jobs:
+  test-release:
+    name: Build and publish test plugin release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      TEST_VERSION: ${{ github.event.inputs.version || '0.1.4.1' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Checkout submodules
+        shell: bash
+        run: |
+          # This test branch points at a RoleplayingVoiceCore commit that lives in the fork
+          # until the upstream PR lands, so override only that submodule URL for CI.
+          git config submodule.RoleplayingVoiceCore.url https://github.com/JoeyBelvar/RoleplayingVoiceCore
+          git submodule update --init --recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x.x
+
+      - name: Download Dalamud
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev\"
+
+      - name: Restore dependencies
+        run: dotnet restore -p:EnableWindowsTargeting=true
+
+      - name: Build
+        run: dotnet build --no-restore -c Release --nologo -p:Version=${{ env.TEST_VERSION }} -p:EnableWindowsTargeting=true
+
+      - name: Package test repo artifacts
+        shell: pwsh
+        run: |
+          $tag = 'test-relay-timeout-fallback'
+          $version = '${{ env.TEST_VERSION }}'
+          $repo = '${{ github.repository }}'
+          $download = "https://github.com/$repo/releases/download/$tag/RoleplayingVoiceDalamud.zip"
+
+          New-Item -ItemType Directory -Force -Path './dist' | Out-Null
+          Compress-Archive -Path './ArtemisRoleplayingKit/bin/Release/*' -DestinationPath './dist/RoleplayingVoiceDalamud.zip' -Force
+
+          $json = Get-Content -Raw './repo.json' | ConvertFrom-Json
+          $json[0].AssemblyVersion = $version
+          $json[0].TestingAssemblyVersion = $version
+          $json[0].RepoUrl = "https://github.com/$repo"
+          $json[0].DownloadLinkInstall = $download
+          $json[0].DownloadLinkTesting = $download
+          $json[0].DownloadLinkUpdate = $download
+          $json[0].LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+          $json | ConvertTo-Json -AsArray -Depth 20 | Set-Content './dist/repo.json'
+
+      - name: Publish test release
+        uses: ncipollo/release-action@v1.14.0
+        with:
+          tag: test-relay-timeout-fallback
+          commit: ${{ github.sha }}
+          name: RoleplayingVoiceDalamud relay timeout fallback test
+          body: Test build for validating closest-relay timeout fallback logic.
+          artifacts: ./dist/RoleplayingVoiceDalamud.zip,./dist/repo.json
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          replacesArtifacts: true
+          prerelease: true
+          makeLatest: false
+          token: ${{ github.token }}
