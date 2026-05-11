@@ -1,0 +1,33 @@
+[
+  {
+    "Author": "Sebastina",
+    "Name": "Artemis Roleplaying Kit",
+    "Description": "Player synced custom voices, Twitch playback integration, and more!",
+    "Tags": [
+      "Voice",
+      "Sound",
+      "Animation",
+      "NPC",
+      "Twitch",
+      "STT",
+      "TTS",
+      "Catalog",
+      "Design",
+      "Character"
+    ],
+    "InternalName": "RoleplayingVoiceDalamud",
+    "AssemblyVersion": "0.6.0.3",
+    "TestingAssemblyVersion": "0.6.0.3",
+    "RepoUrl": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": "False",
+    "IsTestingExclusive": "False",
+    "DownloadCount": 0,
+    "LastUpdate": 0,
+    "DownloadLinkInstall": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-relay-timeout-fallback/RoleplayingVoiceDalamud.zip",
+    "DownloadLinkTesting": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-relay-timeout-fallback/RoleplayingVoiceDalamud.zip",
+    "DownloadLinkUpdate": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-relay-timeout-fallback/RoleplayingVoiceDalamud.zip",
+    "IconUrl": "https://raw.githubusercontent.com/JoeyBelvar/RoleplayingVoiceDalamud/codex/local-build-harness/icon.png"
+  }
+]
