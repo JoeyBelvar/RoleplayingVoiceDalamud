@@ -24,10 +24,10 @@
     "IsHide": "False",
     "IsTestingExclusive": "False",
     "DownloadCount": 0,
-    "LastUpdate": 0,
-    "DownloadLinkInstall": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-relay-timeout-fallback/RoleplayingVoiceDalamud.zip",
-    "DownloadLinkTesting": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-relay-timeout-fallback/RoleplayingVoiceDalamud.zip",
-    "DownloadLinkUpdate": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-relay-timeout-fallback/RoleplayingVoiceDalamud.zip",
-    "IconUrl": "https://raw.githubusercontent.com/JoeyBelvar/RoleplayingVoiceDalamud/codex/local-build-harness/icon.png"
+    "LastUpdate": 1778501953,
+    "DownloadLinkInstall": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-null-safety-log-noise/RoleplayingVoiceDalamud.zip",
+    "DownloadLinkTesting": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-null-safety-log-noise/RoleplayingVoiceDalamud.zip",
+    "DownloadLinkUpdate": "https://github.com/JoeyBelvar/RoleplayingVoiceDalamud/releases/download/test-null-safety-log-noise/RoleplayingVoiceDalamud.zip",
+    "IconUrl": "https://raw.githubusercontent.com/JoeyBelvar/RoleplayingVoiceDalamud/codex/null-safety-log-noise/icon.png"
   }
 ]

@@ -3,7 +3,7 @@ name: Test Plugin Release
 on:
   push:
     branches:
-      - codex/local-build-harness
+      - codex/null-safety-log-noise
   workflow_dispatch:
     inputs:
       version:
@@ -30,7 +30,9 @@ jobs:
       - name: Checkout submodules
         shell: bash
         run: |
-          # The relay/cache fixes now live upstream, so use the canonical submodule URLs from .gitmodules.
+          # This test branch points at a RoleplayingVoiceCore commit that lives on
+          # JoeyBelvar's fork until the fix is accepted upstream.
+          git config submodule.RoleplayingVoiceCore.url https://github.com/JoeyBelvar/RoleplayingVoiceCore.git
           git submodule update --init --recursive
 
       - name: Setup .NET
@@ -53,7 +55,7 @@ jobs:
       - name: Package test repo artifacts
         shell: pwsh
         run: |
-          $tag = 'test-relay-timeout-fallback'
+          $tag = 'test-null-safety-log-noise'
           $version = '${{ env.TEST_VERSION }}'
           $repo = '${{ github.repository }}'
           $download = "https://github.com/$repo/releases/download/$tag/RoleplayingVoiceDalamud.zip"
@@ -74,10 +76,10 @@ jobs:
       - name: Publish test release
         uses: ncipollo/release-action@v1.14.0
         with:
-          tag: test-relay-timeout-fallback
+          tag: test-null-safety-log-noise
           commit: ${{ github.sha }}
-          name: RoleplayingVoiceDalamud relay timeout fallback test
-          body: Test build for validating closest-relay timeout fallback logic.
+          name: RoleplayingVoiceDalamud null-safety test
+          body: Test build for validating startup null-safety and log-noise fixes.
           artifacts: ./dist/RoleplayingVoiceDalamud.zip,./dist/repo.json
           allowUpdates: true
           artifactErrorsFailBuild: true
