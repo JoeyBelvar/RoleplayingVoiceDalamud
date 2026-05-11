@@ -930,7 +930,14 @@ namespace RoleplayingVoiceDalamud.Voice {
                         string backupVoice = voice;
                         Stopwatch downloadTimer = Stopwatch.StartNew();
                         bool foundName = false;
-                        ReportData reportData = new ReportData(npcName, StripPlayerNameFromNPCDialogue(message, _threadSafeObjectTable.LocalPlayer.Name.TextValue, ref foundName), 0, 0, true, 0, 0, 0, _clientState.TerritoryType, note);
+                        var localPlayerName = _threadSafeObjectTable.LocalPlayer?.Name.TextValue;
+                        // LocalPlayer can briefly be unavailable while zoning, logging in, or
+                        // during plugin startup. Reporting should keep the original line rather
+                        // than dropping NPC playback with a NullReferenceException.
+                        var reportMessage = !string.IsNullOrWhiteSpace(localPlayerName)
+                            ? StripPlayerNameFromNPCDialogue(message, localPlayerName, ref foundName)
+                            : message;
+                        ReportData reportData = new ReportData(npcName, reportMessage, 0, 0, true, 0, 0, 0, _clientState.TerritoryType, note);
                         string npcData = JsonConvert.SerializeObject(reportData);
                         MemoryStream stream = new MemoryStream();
                         bool canProceed = false;
