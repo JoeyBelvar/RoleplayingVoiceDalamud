@@ -9,7 +9,7 @@ on:
       version:
         description: Numeric plugin version to publish for testing.
         required: true
-        default: 0.6.0.7
+        default: 0.6.0.8
 
 jobs:
   test-release:
@@ -20,7 +20,7 @@ jobs:
     env:
       # Keep test builds above the currently published upstream version so Dalamud
       # can offer the forked build as an install/update during live-client testing.
-      TEST_VERSION: ${{ github.event.inputs.version || '0.6.0.7' }}
+      TEST_VERSION: ${{ github.event.inputs.version || '0.6.0.8' }}
 
     steps:
       - uses: actions/checkout@v4
