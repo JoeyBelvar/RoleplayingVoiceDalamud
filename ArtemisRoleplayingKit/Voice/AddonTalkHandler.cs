@@ -87,16 +87,22 @@ namespace RoleplayingVoiceDalamud.Voice {
         bool _blockNpcChat = false;
         private List<NPCVoiceHistoryItem> _npcVoiceHistoryItems = new List<NPCVoiceHistoryItem>();
         private static readonly string[] StrongNonEnglishTextMarkers = new[] { "¿", "¡", "á", "é", "í", "ó", "ú", "ñ", "ü" };
-        // Keep weak text markers separate so future false positives are easy to
-        // diagnose. "de" is intentionally excluded because it appears in valid
-        // English-client NPC names and titles.
+        // These markers are Spanish words/phrases that are specific enough to reject on
+        // their own when bounded as complete words. Accented words are intentionally
+        // omitted because StrongNonEnglishTextMarkers catches them first.
         private static readonly string[] WeakNonEnglishTextMarkers = new[] {
-            "Las", "Los", "Esta", "que", "haces", "tiene", "las", "los", "puente", "Heuso",
-            "Campamento", "Muéstrale", "evidencia", "un", "Busca", "frasco", "billis", "Sepulcro",
-            "sur", "cerca", "descubierto", "DESTINO", "y", "puede", "es", "muchas", "pero",
-            "asesino", "agua", "rota.", "Por", "tu", "nombre", "porque", "mi", "querido",
-            "amigo", "caer", "en la", "Te", "esperaré", "Muy", "bien", "lugar", "termine",
-            "en lo", "de luto", "Si", "hecho", "usted", "nosotros", "también", "haremos"
+            "haces", "tiene", "puente", "Heuso", "Campamento", "evidencia", "Busca", "frasco",
+            "billis", "Sepulcro", "cerca", "descubierto", "DESTINO", "puede", "muchas", "pero",
+            "asesino", "agua", "rota.", "nombre", "porque", "querido", "amigo", "caer", "en la",
+            "lugar", "termine", "en lo", "de luto", "hecho", "usted", "nosotros", "haremos"
+        };
+        // Short Spanish function words are useful supporting evidence, but many can
+        // appear in English-client names, acronyms, or stylized text. Require multiple
+        // distinct hits so a single token like "si" does not suppress valid dialogue.
+        private const int RequiredGenericWeakNonEnglishMarkerMatches = 2;
+        private static readonly string[] GenericWeakNonEnglishTextMarkers = new[] {
+            "Las", "Los", "Esta", "que", "un", "sur", "y", "es", "Por", "tu", "mi", "Te",
+            "Muy", "bien", "Si"
         };
         private const int PauseOnlyDialogueAutoAdvanceDelayMs = 1500;
         private long _pauseOnlyDialogueSequence;
@@ -1570,6 +1576,17 @@ namespace RoleplayingVoiceDalamud.Voice {
                 if (ContainsWeakLanguageMarker(message, marker)) {
                     reason = $"contains weak non-English marker '{marker}'";
                     return false;
+                }
+            }
+
+            var genericWeakMarkerHits = new List<string>();
+            foreach (string marker in GenericWeakNonEnglishTextMarkers) {
+                if (ContainsWeakLanguageMarker(message, marker)) {
+                    genericWeakMarkerHits.Add(marker);
+                    if (genericWeakMarkerHits.Count >= RequiredGenericWeakNonEnglishMarkerMatches) {
+                        reason = $"contains multiple generic weak non-English markers '{string.Join("', '", genericWeakMarkerHits)}'";
+                        return false;
+                    }
                 }
             }
 
