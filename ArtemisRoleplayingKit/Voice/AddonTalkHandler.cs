@@ -105,37 +105,6 @@ namespace RoleplayingVoiceDalamud.Voice {
         private string _lastLoggedTalkStateSpeaker = "";
         private string _lastLoggedTalkStateText = "";
 
-        private static bool ContainsWeakLanguageMarker(string message, string marker) {
-            int startIndex = 0;
-            while (startIndex < message.Length) {
-                int markerIndex = message.IndexOf(marker, startIndex, StringComparison.OrdinalIgnoreCase);
-                if (markerIndex == -1) {
-                    return false;
-                }
-
-                int markerEndIndex = markerIndex + marker.Length;
-                if (IsWeakMarkerBoundary(message, markerIndex - 1)
-                    && IsWeakMarkerBoundary(message, markerEndIndex)) {
-                    return true;
-                }
-
-                startIndex = markerIndex + 1;
-            }
-
-            return false;
-        }
-
-        private static bool IsWeakMarkerBoundary(string message, int index) {
-            if (index < 0 || index >= message.Length) {
-                return true;
-            }
-
-            char value = message[index];
-            // Apostrophes are treated as part of names/words so a marker like "y"
-            // does not reject valid English-client names such as Y'shtola.
-            return !char.IsLetter(value) && value != '\'' && value != '\u2019';
-        }
-
         ////public List<ActionTimeline> LipSyncTypes { get; private set; }
 
         private Dictionary<string, byte> _voiceList;
@@ -1605,6 +1574,37 @@ namespace RoleplayingVoiceDalamud.Voice {
             }
 
             return true;
+        }
+
+        private static bool ContainsWeakLanguageMarker(string message, string marker) {
+            int startIndex = 0;
+            while (startIndex < message.Length) {
+                int markerIndex = message.IndexOf(marker, startIndex, StringComparison.OrdinalIgnoreCase);
+                if (markerIndex == -1) {
+                    return false;
+                }
+
+                int markerEndIndex = markerIndex + marker.Length;
+                if (IsWeakMarkerBoundary(message, markerIndex - 1)
+                    && IsWeakMarkerBoundary(message, markerEndIndex)) {
+                    return true;
+                }
+
+                startIndex = markerIndex + 1;
+            }
+
+            return false;
+        }
+
+        private static bool IsWeakMarkerBoundary(string message, int index) {
+            if (index < 0 || index >= message.Length) {
+                return true;
+            }
+
+            char value = message[index];
+            // Treat common English-client name/stutter connectors as part of the
+            // word so single-letter markers do not reject text like Y'shtola or Y-You.
+            return !char.IsLetter(value) && value != '\'' && value != '\u2019' && value != '-';
         }
 
         private string FindNPCNameFromMessage(string message) {
