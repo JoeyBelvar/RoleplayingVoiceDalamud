@@ -34,6 +34,7 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -88,15 +89,21 @@ namespace RoleplayingVoiceDalamud.Voice {
         private List<NPCVoiceHistoryItem> _npcVoiceHistoryItems = new List<NPCVoiceHistoryItem>();
         private static readonly string[] StrongNonEnglishTextMarkers = new[] { "¿", "¡", "á", "é", "í", "ó", "ú", "ñ", "ü" };
         // Keep weak text markers separate so future false positives are easy to
-        // diagnose. " de " is intentionally excluded because it appears in valid
+        // diagnose. "de" is intentionally excluded because it appears in valid
         // English-client NPC names and titles.
-        private static readonly string[] WeakNonEnglishTextMarkers = new[] {
-            "Las ", "Los ", "Esta", " que ", " haces ", " tiene ", " las ", " los ", " puente ", "Heuso ",
-            "Campamento", "Muéstrale", "evidencia", " un ", "Busca ", " frasco ", " billis ", "Sepulcro",
-            " sur ", " cerca", "descubierto", "DESTINO", " y ", "puede", " es ", " muchas ", " pero ",
-            "asesino", " agua ", " rota.", "Por ", " tu ", " nombre ", " porque ", " mi ", " querido ",
-            " amigo", " caer ", "en la", "Te ", "esperaré", "Muy", "bien", " lugar ", " termine ",
-            " Y ", "en lo", "de luto ", "Si ", " hecho ", " usted ", "nosotros", "también", " haremos "
+        private static readonly (string Marker, Regex Pattern)[] WeakNonEnglishTextMarkers = new[] {
+            WeakMarker("Las"), WeakMarker("Los"), WeakMarker("Esta"), WeakMarker("que"), WeakMarker("haces"),
+            WeakMarker("tiene"), WeakMarker("las"), WeakMarker("los"), WeakMarker("puente"), WeakMarker("Heuso"),
+            WeakMarker("Campamento"), WeakMarker("Muéstrale"), WeakMarker("evidencia"), WeakMarker("un"),
+            WeakMarker("Busca"), WeakMarker("frasco"), WeakMarker("billis"), WeakMarker("Sepulcro"),
+            WeakMarker("sur"), WeakMarker("cerca"), WeakMarker("descubierto"), WeakMarker("DESTINO"),
+            WeakMarker("y"), WeakMarker("puede"), WeakMarker("es"), WeakMarker("muchas"), WeakMarker("pero"),
+            WeakMarker("asesino"), WeakMarker("agua"), WeakMarker("rota."), WeakMarker("Por"), WeakMarker("tu"),
+            WeakMarker("nombre"), WeakMarker("porque"), WeakMarker("mi"), WeakMarker("querido"), WeakMarker("amigo"),
+            WeakMarker("caer"), WeakMarker("en la"), WeakMarker("Te"), WeakMarker("esperaré"), WeakMarker("Muy"),
+            WeakMarker("bien"), WeakMarker("lugar"), WeakMarker("termine"), WeakMarker("en lo"), WeakMarker("de luto"),
+            WeakMarker("Si"), WeakMarker("hecho"), WeakMarker("usted"), WeakMarker("nosotros"), WeakMarker("también"),
+            WeakMarker("haremos")
         };
         private const int PauseOnlyDialogueAutoAdvanceDelayMs = 1500;
         private long _pauseOnlyDialogueSequence;
@@ -104,6 +111,14 @@ namespace RoleplayingVoiceDalamud.Voice {
         private bool _lastLoggedTalkStateWasPresent;
         private string _lastLoggedTalkStateSpeaker = "";
         private string _lastLoggedTalkStateText = "";
+
+        private static (string Marker, Regex Pattern) WeakMarker(string marker) {
+            // Weak language markers should match standalone words/phrases only,
+            // not substrings inside English words like "many", "quite", or "ambient".
+            string escapedMarker = Regex.Escape(marker).Replace(@"\ ", @"\s+");
+            return (marker, new Regex($@"(?<!\p{{L}}){escapedMarker}(?!\p{{L}})",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant));
+        }
 
         ////public List<ActionTimeline> LipSyncTypes { get; private set; }
 
@@ -1566,9 +1581,9 @@ namespace RoleplayingVoiceDalamud.Voice {
                 }
             }
 
-            foreach (string marker in WeakNonEnglishTextMarkers) {
-                if (message.Contains(marker, StringComparison.OrdinalIgnoreCase)) {
-                    reason = $"contains weak non-English marker '{marker}'";
+            foreach (var marker in WeakNonEnglishTextMarkers) {
+                if (marker.Pattern.IsMatch(message)) {
+                    reason = $"contains weak non-English marker '{marker.Marker}'";
                     return false;
                 }
             }
