@@ -1,0 +1,14 @@
+services:
+  artemis-resilio-relay:
+    build: .
+    container_name: artemis-resilio-relay
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:18890:8888"
+      - "55555:55555/tcp"
+      - "55555:55555/udp"
+    volumes:
+      - ./data/config:/mnt/sync
+      - ./data/content:/mnt/mounted_folders
