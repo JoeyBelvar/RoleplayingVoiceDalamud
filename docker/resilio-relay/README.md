@@ -28,4 +28,6 @@ The first expected success state in the logs looks like:
 has_key=true onlinepeerscount=2 ismanaged=true iswritable=false access=2
 ```
 
-Once the sync content is present, the next step is to add the relay server execution environment on top of the downloaded folder.
+Once the sync content is present, use the host-mounted runtime scaffold in `../relay-runtime` for the relay execution environment.
+
+The payload synced to `/Users/damullan/Resilio Sync/Artemis Dialogue Server` is currently a Windows Desktop publish (`net7.0-windows`) and does not run in a Linux .NET container yet. The runtime scaffold documents and validates that constraint.

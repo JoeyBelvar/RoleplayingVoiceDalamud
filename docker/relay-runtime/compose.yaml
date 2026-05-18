@@ -1,0 +1,11 @@
+services:
+  artemis-relay-runtime:
+    build: .
+    container_name: artemis-relay-runtime
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - "${ARTEMIS_RELAY_PAYLOAD_PATH:?Set ARTEMIS_RELAY_PAYLOAD_PATH in .env}:/payload:ro"
+    ports:
+      - "${ARTEMIS_RELAY_PORT:-5000}:${ARTEMIS_RELAY_PORT:-5000}"
