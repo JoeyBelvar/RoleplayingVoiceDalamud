@@ -18,6 +18,15 @@ RELAY_SHIM_DLL="${ARTEMIS_RELAY_SHIM_DLL:-/opt/artemis/relay-shim/ArtemisRelaySh
 RELAY_AUDIO_PORT="${ARTEMIS_RELAY_AUDIO_PORT:-5670}"
 RELAY_SERVER_LIST_PORT="${ARTEMIS_RELAY_SERVER_LIST_PORT:-5677}"
 RELAY_INFORMATION_PORT="${ARTEMIS_RELAY_INFORMATION_PORT:-5684}"
+UPNP_ENABLED="${ARTEMIS_UPNP_ENABLED:-false}"
+UPNP_INTERNAL_IP="${ARTEMIS_UPNP_INTERNAL_IP:-}"
+UPNP_LEASE_SECONDS="${ARTEMIS_UPNP_LEASE_SECONDS:-3600}"
+UPNP_REFRESH_INTERVAL="${ARTEMIS_UPNP_REFRESH_INTERVAL_SECONDS:-1800}"
+UPNP_DESCRIPTION_PREFIX="${ARTEMIS_UPNP_DESCRIPTION_PREFIX:-Artemis Relay}"
+UPNP_AUDIO_EXTERNAL_PORT="${ARTEMIS_UPNP_AUDIO_EXTERNAL_PORT:-${RELAY_AUDIO_PORT}}"
+UPNP_SERVER_LIST_EXTERNAL_PORT="${ARTEMIS_UPNP_SERVER_LIST_EXTERNAL_PORT:-${RELAY_SERVER_LIST_PORT}}"
+UPNP_INFORMATION_EXTERNAL_PORT="${ARTEMIS_UPNP_INFORMATION_EXTERNAL_PORT:-${RELAY_INFORMATION_PORT}}"
+UPNP_LAST_REFRESH=0
 
 mkdir -p "${STATE_DIR}"
 chmod 700 "${STATE_DIR}" || true
@@ -286,6 +295,68 @@ relay_status() {
   printf '\n'
 }
 
+detect_upnp_internal_ip() {
+  if [[ -n "${UPNP_INTERNAL_IP}" ]]; then
+    printf '%s' "${UPNP_INTERNAL_IP}"
+    return
+  fi
+
+  ip route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([^ ]*\).*/\1/p' | head -n 1
+}
+
+upnp_map_port() {
+  local internal_ip="$1"
+  local internal_port="$2"
+  local external_port="$3"
+  local label="$4"
+  local output
+
+  output="$(upnpc -e "${label}" -a "${internal_ip}" "${internal_port}" "${external_port}" TCP "${UPNP_LEASE_SECONDS}" 2>&1 || true)"
+  if grep -Eqi 'is redirected|AddPortMapping.*failed|failed|error|No IGD UPnP Device' <<<"${output}"; then
+    if grep -Eqi 'is redirected' <<<"${output}"; then
+      log "upnp status: mapped ${label} external=${external_port}/tcp internal=${internal_ip}:${internal_port} lease=${UPNP_LEASE_SECONDS}s"
+      return 0
+    fi
+    log "upnp status: failed ${label} external=${external_port}/tcp internal=${internal_ip}:${internal_port} details=$(tr '\n' ' ' <<<"${output}" | sed 's/[[:space:]]\+/ /g')"
+    return 1
+  fi
+
+  log "upnp status: attempted ${label} external=${external_port}/tcp internal=${internal_ip}:${internal_port} details=$(tr '\n' ' ' <<<"${output}" | sed 's/[[:space:]]\+/ /g')"
+}
+
+refresh_upnp_if_needed() {
+  if [[ "${UPNP_ENABLED}" != "true" ]]; then
+    return
+  fi
+
+  if [[ "${RELAY_ENABLED}" != "true" ]] || [[ -z "${RELAY_PID:-}" ]] || ! kill -0 "${RELAY_PID}" 2>/dev/null; then
+    log "upnp status: waiting_for_relay"
+    return
+  fi
+
+  local now
+  now="$(date +%s)"
+  if (( UPNP_LAST_REFRESH > 0 && now - UPNP_LAST_REFRESH < UPNP_REFRESH_INTERVAL )); then
+    return
+  fi
+
+  local internal_ip
+  internal_ip="$(detect_upnp_internal_ip)"
+  if [[ -z "${internal_ip}" ]]; then
+    log "upnp status: skipped reason=no_internal_ip set ARTEMIS_UPNP_INTERNAL_IP to the host LAN IP"
+    return
+  fi
+
+  if [[ -z "${UPNP_INTERNAL_IP}" && "${internal_ip}" =~ ^172\. ]]; then
+    log "upnp status: warning auto_detected_internal_ip=${internal_ip} looks like a Docker bridge IP; set ARTEMIS_UPNP_INTERNAL_IP to the host LAN IP if mappings do not work"
+  fi
+
+  upnp_map_port "${internal_ip}" "${RELAY_AUDIO_PORT}" "${UPNP_AUDIO_EXTERNAL_PORT}" "${UPNP_DESCRIPTION_PREFIX} audio" || true
+  upnp_map_port "${internal_ip}" "${RELAY_SERVER_LIST_PORT}" "${UPNP_SERVER_LIST_EXTERNAL_PORT}" "${UPNP_DESCRIPTION_PREFIX} server-list" || true
+  upnp_map_port "${internal_ip}" "${RELAY_INFORMATION_PORT}" "${UPNP_INFORMATION_EXTERNAL_PORT}" "${UPNP_DESCRIPTION_PREFIX} information" || true
+  UPNP_LAST_REFRESH="${now}"
+}
+
 bootstrap_until_ready() {
   wait_for_resilio
   ensure_password
@@ -312,6 +383,7 @@ bootstrap_until_ready
 
 while kill -0 "${RESILIO_PID}" 2>/dev/null; do
   start_relay_if_ready
+  refresh_upnp_if_needed
   log "sync status: $(folder_status)"
   log "relay status: $(relay_status)"
   sleep "${MONITOR_INTERVAL}"

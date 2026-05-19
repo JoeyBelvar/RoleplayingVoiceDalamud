@@ -19,8 +19,28 @@ Copy `env.example` to `.env`, then set:
 - `RESILIO_WEBUI_PASSWORD` to a local password, or leave it empty and the container will generate one in `data/config/config/artemis-relay/webui-password`.
 - `ARTEMIS_RELAY_BIND_HOST=0.0.0.0` if the relay should be reachable from other machines. The default is `127.0.0.1`.
 - `ARTEMIS_RELAY_ENABLED=false` if you only want to sync content and not start the relay.
+- `ARTEMIS_UPNP_ENABLED=true` to let the container attempt router port mappings for relay ports.
+- `ARTEMIS_UPNP_INTERNAL_IP` to the host machine's LAN IP if the auto-detected IP is a Docker bridge address.
 
 The default content path is `/mnt/mounted_folders/Artemis Dialogue Server`. Keep `RESILIO_SYNC_PATH` under `/mnt`; the official 2.x Docker image rejects destinations outside its `/mnt` root.
+
+## UPnP Port Mapping
+
+UPnP is disabled by default. When enabled, the container uses `upnpc` to request TCP mappings for:
+
+- `5670` audio relay
+- `5677` server-list service
+- `5684` information service
+
+For a normal Docker bridge network, automatic IP detection can produce a private Docker address such as `172.x.x.x`. Routers cannot forward internet traffic to that address. If the logs show that warning, set `ARTEMIS_UPNP_INTERNAL_IP` to the host machine's LAN IP, for example:
+
+```text
+ARTEMIS_UPNP_ENABLED=true
+ARTEMIS_UPNP_INTERNAL_IP=192.168.1.50
+ARTEMIS_RELAY_BIND_HOST=0.0.0.0
+```
+
+The container refreshes mappings every `ARTEMIS_UPNP_REFRESH_INTERVAL_SECONDS` and requests leases for `ARTEMIS_UPNP_LEASE_SECONDS`. If UPnP is blocked by the router, the logs will include the `upnpc` failure output and the relay can still run with manual port forwarding.
 
 ## Run
 
@@ -52,6 +72,7 @@ The monitor loop logs both sync and relay health:
 ```text
 [artemis-bootstrap] sync status: path=/mnt/mounted_folders/Artemis Dialogue Server has_key=true onlinepeerscount=1 ...
 [artemis-bootstrap] relay status: pid=42 port_5670=listening port_5677=listening port_5684=listening
+[artemis-bootstrap] upnp status: mapped Artemis Relay audio external=5670/tcp internal=192.168.1.50:5670 lease=3600s
 ```
 
 The relay ports expect specific POST body formats. The monitor checks that the ports are listening instead of issuing generic HTTP health requests, because blind `GET /` probes can create pending relay requests.
