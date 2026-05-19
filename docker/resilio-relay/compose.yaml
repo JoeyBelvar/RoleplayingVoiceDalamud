@@ -1,12 +1,16 @@
 services:
   artemis-resilio-relay:
     build: .
+    platform: linux/amd64
     container_name: artemis-resilio-relay
     restart: unless-stopped
     env_file:
       - .env
     ports:
       - "127.0.0.1:18890:8888"
+      - "${ARTEMIS_RELAY_BIND_HOST:-127.0.0.1}:${ARTEMIS_RELAY_AUDIO_PORT:-5670}:5670"
+      - "${ARTEMIS_RELAY_BIND_HOST:-127.0.0.1}:${ARTEMIS_RELAY_SERVER_LIST_PORT:-5677}:5677"
+      - "${ARTEMIS_RELAY_BIND_HOST:-127.0.0.1}:${ARTEMIS_RELAY_INFORMATION_PORT:-5684}:5684"
       - "55555:55555/tcp"
       - "55555:55555/udp"
     volumes:

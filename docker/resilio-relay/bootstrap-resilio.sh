@@ -13,6 +13,11 @@ WEBUI_PASSWORD="${RESILIO_WEBUI_PASSWORD:-}"
 SHARE_LINK="${RESILIO_SHARE_LINK:-}"
 SYNC_PATH="${RESILIO_SYNC_PATH:-/mnt/mounted_folders/Artemis Dialogue Server}"
 MONITOR_INTERVAL="${RESILIO_MONITOR_INTERVAL_SECONDS:-30}"
+RELAY_ENABLED="${ARTEMIS_RELAY_ENABLED:-true}"
+RELAY_SHIM_DLL="${ARTEMIS_RELAY_SHIM_DLL:-/opt/artemis/relay-shim/ArtemisRelayShim.dll}"
+RELAY_AUDIO_PORT="${ARTEMIS_RELAY_AUDIO_PORT:-5670}"
+RELAY_SERVER_LIST_PORT="${ARTEMIS_RELAY_SERVER_LIST_PORT:-5677}"
+RELAY_INFORMATION_PORT="${ARTEMIS_RELAY_INFORMATION_PORT:-5684}"
 
 mkdir -p "${STATE_DIR}"
 chmod 700 "${STATE_DIR}" || true
@@ -35,6 +40,10 @@ curl_auth() {
 
 shutdown() {
   local status=$?
+  if [[ -n "${RELAY_PID:-}" ]] && kill -0 "${RELAY_PID}" 2>/dev/null; then
+    kill "${RELAY_PID}" 2>/dev/null || true
+    wait "${RELAY_PID}" 2>/dev/null || true
+  fi
   if [[ -n "${RESILIO_PID:-}" ]] && kill -0 "${RESILIO_PID}" 2>/dev/null; then
     kill "${RESILIO_PID}" 2>/dev/null || true
     wait "${RESILIO_PID}" 2>/dev/null || true
@@ -212,6 +221,71 @@ folder_status() {
   printf '\n'
 }
 
+relay_payload_ready() {
+  [[ -f "${SYNC_PATH}/CachedTTSRelay.dll" ]] \
+    && [[ -f "${SYNC_PATH}/CachedTTSRelay.deps.json" ]] \
+    && [[ -f "${SYNC_PATH}/RoleplayingVoiceCore.dll" ]] \
+    && [[ -d "${SYNC_PATH}/NPC Dialogue Cache" ]]
+}
+
+start_relay_if_ready() {
+  if [[ "${RELAY_ENABLED}" != "true" ]]; then
+    return
+  fi
+
+  if [[ -n "${RELAY_PID:-}" ]] && kill -0 "${RELAY_PID}" 2>/dev/null; then
+    return
+  fi
+
+  if ! relay_payload_ready; then
+    log "relay status: waiting_for_payload path='${SYNC_PATH}' required='CachedTTSRelay.dll,CachedTTSRelay.deps.json,RoleplayingVoiceCore.dll,NPC Dialogue Cache/'"
+    return
+  fi
+
+  log "starting relay shim from ${RELAY_SHIM_DLL}"
+  ARTEMIS_RELAY_PAYLOAD_PATH="${SYNC_PATH}" \
+    dotnet "${RELAY_SHIM_DLL}" &
+  RELAY_PID="$!"
+}
+
+port_hex() {
+  printf '%04X' "$1"
+}
+
+port_listening() {
+  local port="$1"
+  local hex
+  hex="$(port_hex "${port}")"
+  grep -Eiq ":0*${hex}[[:space:]]+[0-9A-F]+:[0-9A-F]{4}[[:space:]]+0A" /proc/net/tcp /proc/net/tcp6 2>/dev/null
+}
+
+relay_status() {
+  if [[ "${RELAY_ENABLED}" != "true" ]]; then
+    printf 'disabled\n'
+    return
+  fi
+
+  if [[ -z "${RELAY_PID:-}" ]]; then
+    printf 'not_started\n'
+    return
+  fi
+
+  if ! kill -0 "${RELAY_PID}" 2>/dev/null; then
+    printf 'exited\n'
+    return
+  fi
+
+  printf 'pid=%s' "${RELAY_PID}"
+  for port in "${RELAY_AUDIO_PORT}" "${RELAY_SERVER_LIST_PORT}" "${RELAY_INFORMATION_PORT}"; do
+    if port_listening "${port}"; then
+      printf ' port_%s=listening' "${port}"
+    else
+      printf ' port_%s=closed' "${port}"
+    fi
+  done
+  printf '\n'
+}
+
 bootstrap_until_ready() {
   wait_for_resilio
   ensure_password
@@ -237,7 +311,9 @@ RESILIO_PID="$!"
 bootstrap_until_ready
 
 while kill -0 "${RESILIO_PID}" 2>/dev/null; do
+  start_relay_if_ready
   log "sync status: $(folder_status)"
+  log "relay status: $(relay_status)"
   sleep "${MONITOR_INTERVAL}"
 done
 
